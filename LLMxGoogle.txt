@@ -1,44 +1,63 @@
-LLM x Google Apps Script
+// ===============================
+// CONFIGURATION
+// ===============================
+const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"; 
+const MODEL_NAME = "gemini-1.5-flash";  // Model minimal yang dibolehkan
+const EMAIL_SUBJECT = "Reply for your question";
 
-<Objective>
-Create a system that sends an automatic reply email based on the input from a Google 
-Form. Use GEMINI API to generate the reply.
 
-<Purpose>
-To test your skills in connecting Google Apps Script with an LLM API (the free Gemini API).
+// ===============================
+// MAIN TRIGGER FUNCTION
+// ===============================
+function onFormSubmit(e) {
+  const email = e.namedValues["Your email"][0];
+  const question = e.namedValues["Question"][0];
 
-<Requirements>
-1. Tools and APIs 
-    
-Google Account: Use your personal Google Account. NOTE: school or company organization accounts are NOT  allowed, because the app settings are different from normal ones. 
-Google Apps Script:  Use Google Apps Script.
-Free Gemini API:  Use the free Gemini API as the LLM API.
+  const answer = callGemini(question);
+  sendEmail(email, answer);
+}
 
-2. Google Form Specifications 
-Specification  Details 
-Form title  "Form_your_name" (e.g., Form_Arjun_Mehta) 
- Fields (only these two)  1) Your email (field for entering an email 
- address)  2) Question (field for entering a 
- question) 
- 3. Email Sending Specifications 
- Specification  Details 
- LLM API call  Based on the form response, call the LLM API to 
- generate an answer and send it by email. 
- Model  Any gemini text-generation model is fine. 
- You do  NOT  need to use the latest model. 
- Even  gemini-1.5-flash  is enough. 
- Question scope  Assume the questions are general questions 
- about machine learning. Send the question 
- directly to the GEMINI API and use its answer. 
- No complex prompt engineering or RAG features 
- are needed. 
- Reply email subject  "Reply for your question" 
-Specification  
-Recipient  
-Trigger  
-4. Form Sharing Settings 
-Specification  
-Link to share with respondents  
-Accessibility  
-5. Submission (1 link) 
-●  The responder link (https:/..)
+
+// ===============================
+// LLM CALL (GEMINI)
+// ===============================
+function callGemini(question) {
+  const url = "https://generativelanguage.googleapis.com/v1beta/models/"
+              + MODEL_NAME + ":generateContent?key=" + GEMINI_API_KEY;
+
+  const payload = {
+    contents: [{
+      parts: [{
+        text: question
+      }]
+    }]
+  };
+
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+  const json = JSON.parse(response.getContentText());
+
+  try {
+    return json.candidates[0].content.parts[0].text;
+  } catch (err) {
+    return "Sorry, I could not process your question.";
+  }
+}
+
+
+// ===============================
+// SEND EMAIL
+// ===============================
+function sendEmail(recipient, answer) {
+  MailApp.sendEmail({
+    to: recipient,
+    subject: EMAIL_SUBJECT,
+    htmlBody: answer
+  });
+}
